@@ -1,0 +1,243 @@
+1. 	Import data from a table in a relational database into HDFS
+
+	MySQL:
+	
+	1.	sqoop import 
+			--connect jdbc:mysql://localhost:3306/sqoop 
+			--username root 
+			--password
+			--split-by id 
+			--columns id,name 
+			--table customer  
+			--target-dir /user/cloudera/ingest/raw/customers 
+			--fields-terminated-by "," 
+	
+	2.	sqoop import 
+			--connect jdbc:mysql://172.16.16.128:3306/employees 
+			--username=hive 
+			--password=hive 
+			--driver com.mysql.jdbc.Driver 
+			--table=employees 
+			--hive-import 
+			--hive-table=empl.employees 
+			--target-dir=wp_users_import 
+			--direct
+	
+	3.	sqoop import 
+			--connect jdbc:mysql://172.16.16.128:3306/employees 
+			--username=hive 
+			--password=hive 
+			--driver com.mysql.jdbc.Driver 
+			--table=employees 
+			--hive-import 
+			--hive-table=empl.salaries 
+			--target-dir=wp_users_import 
+			--direct
+
+	4. sqoop eval 
+			--connect jdbc:mysql://localhost.localdomain/sqoop_test 
+			--username root 
+			--query "SELECT * FROM emp"
+	
+	Oracle:
+	
+	2.	sqoop import 
+			--connect jdbc:oracle:thin:@localhost:1521/orcl 
+			--username MOVIEDEMO 
+			--password welcome1 
+			--table ACTIVITY
+	
+	Updates:
+	
+	
+	
+	HBase:
+
+	1.	sqoop-import 
+			--connect jdbc:oracle:thin:@db.test.com:PORT:INSTANCE_NAME 
+			--username ssanku 
+			--password 
+			--table DW_DATAMART.PAY_PAY_CHK_OPTION_D 
+			--hbase-table DW_DATAMART.PAY_PAY_CHK_OPTION_D 
+			--column-family cf1 
+			--hbase-create-table
+	
+	
+	2.	sqoop-import 
+			--connect jdbc:oracle:thin:@db.test.com:1725:hrlites 
+			--username ssanku 
+			--password 
+			--table PSMERCHANTID 
+			--hbase-table PSMERCHANTID 
+			--column-family cf 
+			--hbase-row-key MERCHANTID 
+			--hbase-create-table 
+			--split-by MERCHANTID
+	
+	3.	sqoop-import 
+			--connect jdbc:oracle:thin:@db.test.com:PORT:INSTANCE_NAME 
+			--username ssanku 
+			--password 
+			--table DW_DATAMART.PAY_PAYGROUP_D 
+			--hbase-table DW_DATAMART.PAY_PAYGROUP_D 
+			--column-family cf1 
+			--hbase-create-table
+	
+	4.	sqoop-import 
+			--connect jdbc:oracle:thin:@db.test.com:1725:hrlites 
+			--username ssanku 
+			--password 
+			--table PSMERCHANTID 
+			--hbase-table PSMERCHANTID 
+			--column-family cf 
+			--hbase-create-table 
+			--split-by MERCHANTID
+
+
+
+	Sqoop Job:
+	
+	--There should be space between ‘–‘ and ‘import’
+	
+	1.	Create job:
+		sqoop job 
+			--create myjob 
+			--import 
+			--connect jdbc:mysql://localhost/sqoop_export 
+			--username root 
+			--password 
+			--table student_exported 
+			--target-dir /sqoop/test_job
+	
+	2.	list jobs: it will show all the jobs:
+		sqoop job --list
+	
+	3.	inspect job: it will show details about the job:
+		sqoop job –show <jobname>
+	
+	4.	delete job: it will delete existing job:
+		sqoop job --delete <jobname>
+	
+	5.	execute job: it will execute the job:
+	sqoop job --exec myjob
+
+====================================================================================================================
+
+
+2.	Import the results of a query from a relational database into HDFS
+
+
+	1.	sqoop import 
+	 		--connect jdbc:teradata://<DB Schema Nmae>/DATABASE=app_hadoop,CHARSET=UTF8
+			--driver "com.teradata.jdbc.TeraDriver" 
+			--username XXXXX 
+			--password XXXXX 
+			--query "select a*,b* from abc 
+			--where CAST(ts as DATE) >='2012-00-01' and CAST(ts as DATE) < '2016-02-01' AND \$CONDITIONS" 
+			--null-string '\\N' 
+			--null-non-string '\\N' 
+			--hive-delims-replacement '\0D' 
+			--fields-terminated-by '\001' 
+			--target-dir /db/prep/data 
+			--split-by created_on 
+			--m 4
+	
+	2.	sqoop import 
+			--connect "jdbc:mysql://quickstart.cloudera:3306/retail_db" 
+			--username "root" --password "cloudera" 
+			--mapreduce-job-name "This is our second sqoop import - with boundary condition" 
+			--query "SELECT * FROM categories WHERE \$CONDITIONS" 
+			--boundary-query "SELECT 10, 1000 FROM categories" 
+			--hive-import 
+			--create-hive-table 
+			--fields-terminated-by ',' 
+			--hive-table sqoop_db.categories 
+			--split-by "customer_id" 
+			--target-dir "/user/cloudera/categories"
+	
+	3. sqoop import 
+			--connect "jdbc:mysql://localhost/training" 
+			--username training 
+			--password
+			--table cityByCountry 
+			--target-dir /user/where_clause 
+			--where "state = 'Alaska'" 
+			--m 1
+
+====================================================================================================================
+
+3.	Import a table from a relational database into a new or existing Hive table
+
+	New:
+	
+	1.	sqoop import 
+			--connect jdbc:mysql://localhost:3306/sqoop 
+			--username root 
+			--password 
+			--split-by id 
+			--columns id,name 
+			--table customer  
+			--target-dir /user/cloudera/ingest/raw/customers 
+			--fields-terminated-by "," 
+			--hive-import 
+			--create-hive-table 
+			--hive-table sqoop_workspace.customers
+	
+	Append:
+	
+	2.	sqoop import 
+			--connect jdbc:oracle:thin:@localhost:1521/orcl 
+			--username MOVIEDEMO 
+			--password welcome1 
+			--table CREW 
+			--hive-import 
+			--incremental append 
+			--check-column CREW_ID
+	
+	3. sqoop export 
+			--connect <jdbc connection> \
+			--username sqoop \
+			--password sqoop \
+			--table emp \
+			--update-mode allowinsert \
+			--update-key id \
+			--export-dir <dir> \
+			--input-fields-terminated-by ',';
+	
+	Note: 
+			--update-mode <mode> - we can pass two arguments "updateonly" - to update the records. 
+			--This will update the records if the update key matches.
+	If you want to do upsert (If exists UPDATE else INSERT) then use "allowinsert" mode.
+	example: 
+			--update-mode updateonly \ --> for updates
+			--update-mode allowinsert \ --> for upsert
+	
+====================================================================================================================
+
+4.	Insert or update data from HDFS into a table in a relational database
+
+	1.	sqoop export 
+			--connect jdbc:oracle:thin:@localhost:1521/orcl 
+			--username MOVIEDEMO 
+			--password welcome1 
+			--table ACTIVITY_FILTERED 
+			--export-dir FILTERED_ACTIVITIES
+	
+	2. sqoop export 
+			--connect jdbc:mysql://localhost/sqoop_export 
+			--export-dir /sqoop/emp_last/part-m-00000 
+			--update-key id
+
+
+
+====================================================================================================================
+
+5.	Given a Flume configuration file, start a Flume agent
+
+
+====================================================================================================================
+
+6.	Given a configured sink and source, configure a Flume memory channel with a specified capacity
+
+
+====================================================================================================================

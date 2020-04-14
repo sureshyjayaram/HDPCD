@@ -1,0 +1,173 @@
+1.	Write and execute a Pig script
+	
+	--Pig -x local 
+	--Pig -x MapReduce
+	
+	--pig -f somefile.pig
+
+	population 		= LOAD '/user/hue/population.csv' USING PigStorage(',') AS 
+				 		(year:int, age:int, gender:int, popsize:int);
+	split_gender 	= GROUP population BY gender;
+	results 		= FOREACH split_gender GENERATE SUM(population.popsize), gender;
+	DUMP results;
+
+	-- script.pig
+	a = load 'filename' using PigStorage(<delim_char>) [as (c1:<type>, ..., cn:<type>)];
+	b = foreach a generate c1;
+	c = group a by c1;
+	d = filter c by c1 == <num>;
+	e = order a by <field> ASC|DESC;
+	f = distinct a;
+	g = group a by c1 parallel 18;
+	h = join a by a.c1 [LEFT|RIGHT|FULL] [OUTER], b by b.c1 [USING 'replicated' | 'skewed' | 'merge'] ;
+	store d into <hdfs_path>;
+	dump b;
+
+	pig script.pig
+====================================================================================================================
+
+2.	Load data into a Pig relation without a schema
+
+	a1 = load 'flightdelay' using PigStorage(',');
+
+	a = load 'filename' using PigStorage(<delim_char>);
+
+====================================================================================================================
+
+
+3.	Load data into a Pig relation with a schema
+	
+	A = LOAD '/user/hadoop/products' USING PigStorage(',') AS (id, product_name, price);
+	B = FOREACH A GENERATE id;
+	C = FOREACH A GENERATE $1,$2;
+	DUMP C;
+
+	describe A;
+
+
+====================================================================================================================
+
+
+4.	Load data from a Hive table into a Pig relation
+	
+	1.	hive –service metastore
+
+	a1 = load 'students_db.student' using org.apache.hive.hcatalog.pig.HCatLoader();
+	a2 = filter a1 by std_id == 102;
+	store a2 into 'students_db.college' using org.apache.hive.hcatalog.pig.HCatStorer();
+
+	store a2 into '/user/horton/college' using PigStorage(',');
+
+	pig -useHCatalog store_student.pig
+
+	--Partitions
+
+	store data into 'hive_dbs.hive_table' using org.apache.hive.hcatalog.pig.HCatStorer('datestamp=20160324');
+
+	2.
+	pig -useHCatalog #first invoke the pig shell with the -useHCatalog flag
+	A = LOAD 'db.tablename' USING org.apache.hive.hcatalog.pig.HCatLoader(); #this loads data
+	store A into 'db.tablename2' using org.apache.hive.hcatalog.pig.HCatStorer(); #this stores data
+
+
+====================================================================================================================
+
+
+5.	Use Pig to transform data into a specified format
+	
+	b = foreach a generate c1;
+
+====================================================================================================================
+
+6.	Transform data to match a given Hive schema
+	
+	b = foreach a generate c1, c2, c3, ..., cN;
+
+====================================================================================================================
+
+7.	Group the data of one or more Pig relations
+	
+	c = group a by c1;
+
+====================================================================================================================
+
+
+8.	Use Pig to remove records with null values from a relation
+
+	d = filter c by c1 != NULL;
+
+====================================================================================================================
+
+9.	Store the data from a Pig relation into a folder in HDFS
+	
+	store d into /path/to/location;
+
+====================================================================================================================
+
+10.	Store the data from a Pig relation into a Hive table
+	
+	store A into 'db.tablename2' using org.apache.hive.hcatalog.pig.HCatStorer(); #this stores data
+
+====================================================================================================================
+
+11.	Sort the output of a Pig relation
+
+	e = order a by c1 [ASC|DESC];
+
+====================================================================================================================
+
+12.	Remove the duplicate tuples of a Pig relation
+	
+	f = distinct a;
+
+====================================================================================================================
+
+13.	Specify the number of reduce tasks for a Pig MapReduce job
+	
+	g = group a by c1 parallel 18;
+
+====================================================================================================================
+
+14.	Join two datasets using Pig
+	
+	h = join a by a.c1 LEFT, b by b.c1;
+
+====================================================================================================================
+
+15.	Perform a replicated join using Pig
+	
+	h = join a by a.c1 LEFT, b by b.c1 USING 'replicated';
+
+====================================================================================================================
+
+16.	Run a Pig job using Tez
+	
+	pig -x tez script.pig
+
+====================================================================================================================
+
+17.	Within a Pig script, register a JAR file of User Defined Functions
+	
+	register ./myjar.jar;
+	define toUpper `myjar.UPPER`;
+	A = LOAD 'student_data' AS (name: chararray, age: int, gpa: float);
+	B = FOREACH A GENERATE toUpper(name);
+	DUMP B;
+
+====================================================================================================================
+
+18.	Within a Pig script, define an alias for a User Defined Function
+	
+	define toUpper `myjar.UPPER`;
+
+====================================================================================================================
+
+19.	Within a Pig script, invoke a User Defined Function
+	
+	A = LOAD 'student_data' AS (name: chararray, age: int, gpa: float);
+	B = FOREACH A GENERATE toUpper(name);
+	DUMP B;
+
+====================================================================================================================
+
+

@@ -1,0 +1,446 @@
+1.	Write and execute a Hive query
+	
+	beeline -u 
+	"jdbc:hive2://master01:2181,master02:2181,master03:2181/;serviceDiscoveryMode=zooKeeper;
+	zooKeeperNamespace=hiveserver2" 
+	-f file.hql 
+	--hivevar HDFSDIR=/tmp/folder
+
+	USE myhivedb;
+	LOAD DATA INPATH '${HDFSDIR}/browser.tsv' OVERWRITE INTO TABLE browser;
+	
+
+	beeline -u "jdbc:hive2://master:10000/;principal=hive/master@DOMAIN.NET" 
+        --incremental=true 
+        --showHeader=true  
+        --verbose =false  
+        --outputformat=dsv  
+        --delimiterForDSV="~"  
+        -f /home/userfoldername/testquery.hql>file_correspond99.txt
+
+
+====================================================================================================================
+
+2.	Define a Hive-managed table
+	
+		create table employee(Name String, Sal Int)
+		COMMENT 'User Infomation'
+		row format delimited 
+		fields terminated by ','
+		;
+
+		describe formatted table_name;
+
+		load data local inpath 'path of the file' into table employee;
+
+
+
+====================================================================================================================
+
+3.	Define a Hive external table
+	
+		create external table employee(Name String, Sal Int)
+		COMMENT 'User Infomation'
+		row format delimited 
+		fields terminated by ','
+		LOCATION '/data/table_name';
+
+		LOAD INPATH '/user/chris/data/testdata' OVERWRITE INTO TABLE employee;
+	
+====================================================================================================================
+
+4.	Define a partitioned Hive table
+		
+		
+		set hive.exec.dynamic.partition=true;
+		set hive.exec.dynamic.partition.mode=nonstrict;
+		set hive.exec.max.dynamic.partitions.pernode=1000;
+
+		DROP TABLE IF EXISTS partitioned_user;
+
+		CREATE TEMPORARY TABLE temp_user(
+			firstname VARCHAR(64),
+			lastname  VARCHAR(64),
+			address   STRING,
+			country   VARCHAR(64),
+			city      VARCHAR(64),
+			state     VARCHAR(64),
+			post      STRING,
+			phone1    VARCHAR(64),
+			phone2    STRING,
+			email     STRING,
+			web       STRING
+			)
+		ROW FORMAT DELIMITED 
+		FIELDS TERMINATED BY ','
+		LINES TERMINATED BY '\n'
+		STORED AS TEXTFILE;
+
+		LOAD DATA LOCAL INPATH '/home/siva/UserRecords.txt' INTO TABLE temp_user;
+
+		SELECT firstname, phone1, city 
+		FROM temp_user 
+		WHERE country='US' AND state='CA' 
+		ORDER BY city 
+		LIMIT 5;
+
+		CREATE TABLE partitioned_user(
+			firstname VARCHAR(64),
+			lastname  VARCHAR(64),
+			address   STRING,
+			city 	  VARCHAR(64),
+			post      STRING,
+			phone1    VARCHAR(64),
+			phone2    STRING,
+			email     STRING,
+			web       STRING
+			)
+		PARTITIONED BY (country VARCHAR(64), state VARCHAR(64))
+		STORED AS SEQUENCEFILE;
+
+		INSERT INTO TABLE partitioned_user
+		PARTITION (country, state)
+		SELECT  firstname ,
+		lastname  ,
+		address   ,
+		city      ,
+		post      ,
+		phone1    ,
+		phone2    ,
+		email     ,
+		web       ,
+		country   ,
+		state     
+		FROM temp_user;
+
+		SELECT firstname, phone1, city 
+		FROM partitioned_user 
+		WHERE country='US' AND state='CA' 
+		ORDER BY city 
+		LIMIT 5;
+
+		SHOW PARTITIONS partitioned_user;
+		SHOW PARTITIONS partitioned_user PARTITION(country='US');
+		DESCRIBE FORMATTED partitioned_user PARTITION(country='US', state='CA');
+
+		ALTER TABLE partitioned_user ADD IF NOT EXISTS
+		PARTITION (country = 'US', state = 'XY') LOCATION '/hdfs/external/file/path1'
+		PARTITION (country = 'CA', state = 'YZ') LOCATION '/hdfs/external/file/path2'
+		PARTITION (country = 'UK', state = 'ZX') LOCATION '/hdfs/external/file/path2'
+		...;
+
+		ALTER TABLE partitioned_user PARTITION (country='US', state='CA')
+		SET LOCATION '/hdfs/partition/newpath';
+
+		ALTER TABLE partitioned_user DROP IF EXISTS PARTITION(country='US', state='CA');
+
+		ALTER TABLE log_messages ARCHIVE PARTITION(country='US',state='XZ');
+		--we can un archive these with UNARCHIVE PARTITION clause
+
+		ALTER TABLE partitioned_user PARTITION(country='US',state='XY') ENABLE NO_DROP;
+		ALTER TABLE partitioned_user PARTITION(country='US',state='XY') ENABLE OFFLINE;
+		--To reverse either operation, replace ENABLE with DISABLE
+
+====================================================================================================================
+
+5.	Define a bucketed Hive table
+	
+		set hive.exec.dynamic.partition=true;
+		set hive.exec.dynamic.partition.mode=nonstrict;
+		set hive.exec.max.dynamic.partitions.pernode=1000;
+		set hive.enforce.bucketing = true;
+
+		DROP TABLE IF EXISTS bucketed_user;
+
+		CREATE TEMPORARY TABLE temp_user(
+			firstname VARCHAR(64),
+			lastname  VARCHAR(64),
+			address   STRING,
+			country   VARCHAR(64),
+			city      VARCHAR(64),
+			state     VARCHAR(64),
+			post      STRING,
+			phone1    VARCHAR(64),
+			phone2    STRING,
+			email     STRING,
+			web       STRING
+			)
+		ROW FORMAT DELIMITED 
+		FIELDS TERMINATED BY ','
+		LINES TERMINATED BY '\n'
+		STORED AS TEXTFILE;
+
+		LOAD DATA LOCAL INPATH '/home/user/user_table.txt' INTO TABLE temp_user;
+
+		CREATE TABLE bucketed_user(
+			firstname VARCHAR(64),
+			lastname  VARCHAR(64),
+			address   STRING,
+			city 	     VARCHAR(64),
+			state     VARCHAR(64),
+			post      STRING,
+			phone1    VARCHAR(64),
+			phone2    STRING,
+			email     STRING,
+			web       STRING
+			)
+		COMMENT 'A bucketed sorted user table'
+		PARTITIONED BY (country VARCHAR(64))
+		CLUSTERED BY (state) SORTED BY (city) INTO 32 BUCKETS
+		STORED AS SEQUENCEFILE;
+
+		set hive.enforce.bucketing = true;
+
+		INSERT OVERWRITE TABLE bucketed_user PARTITION (country)
+		SELECT  firstname ,
+		lastname  ,
+		address   ,
+		city      ,
+		state     ,
+		post      ,
+		phone1    ,
+		phone2    ,
+		email     ,
+		web       ,
+		country   
+		FROM temp_user;
+
+
+		SELECT firstname, country, state, city FROM bucketed_user 
+    	TABLESAMPLE(BUCKET 32 OUT OF 32 ON state);
+
+    	 SELECT firstname, country, state, city FROM bucketed_user TABLESAMPLE(1 PERCENT);
+
+====================================================================================================================
+
+6.	Define a Hive table from a select query
+	
+		CREATE TABLE new_test 
+		AS select * from source;
+
+====================================================================================================================
+
+7.	Define a Hive table that uses the ORCFile format
+	
+		CREATE TABLE EMP_ORC (id int, name string, age int, address string)
+    	STORED AS ORC 
+    	tblproperties (“orc.compress" = “SNAPPY");
+
+		INSERT OVERWRITE TABLE EMP_ORC SELECT * FROM EMP;
+
+====================================================================================================================
+
+8.	Create a new ORCFile table from the data in an existing non-ORCFile Hive table
+
+		CREATE TABLE new_test 
+		row format delimited 
+		fields terminated by '|' 
+		STORED AS ORC 
+		AS select * from source where col=1;
+	
+====================================================================================================================
+
+9.	Specify the storage format of a Hive table
+	
+		CREATE TABLE employeeBINSEQ(empno, fname, lname, dept)
+		STORED AS SEQUENCEFILE
+		AS SELECT * FROM employee;
+
+====================================================================================================================
+
+10.	Specify the delimiter of a Hive table
+	
+		create external table employee(Name String, Sal Int)
+		COMMENT 'User Infomation'
+		row format delimited 
+		fields terminated by '|'
+		LOCATION '/data/table_name';
+
+====================================================================================================================
+
+11.	Load data into a Hive table from a local directory
+
+		LOAD DATA LOCAL INPATH '/home/user/user_table.txt' INTO TABLE temp_user;
+
+====================================================================================================================
+
+12.	Load data into a Hive table from an HDFS directory
+
+		LOAD DATA INPATH 'hdfs_file_or_directory_path' [OVERWRITE] INTO TABLE tablename
+  		[PARTITION (partcol1=val1, partcol2=val2 ...)]
+
+====================================================================================================================
+
+13.	Load data into a Hive table as the result of a query
+
+		INSERT INTO table tablename1 select columnlist FROM secondtable;
+
+====================================================================================================================
+
+14.	Load a compressed data file into a Hive table
+
+		Set Hive.exec.compress.output = true
+		Set io.seqfile.compression.type = block
+
+		load data local inpath ‘post41.csv.gz’ into table post41;
+====================================================================================================================
+
+15.	Update a row in a Hive table
+
+		hive.enforce.bucketing=true
+		hive.exec.dynamic.partition.mode=nonstrict
+
+		CREATE TABLE students (name VARCHAR(64), age INT, gpa DECIMAL(3,2)) 
+		CLUSTERED BY (age) INTO 2 BUCKETS 
+		STORED AS ORC; 
+
+		INSERT INTO TABLE students VALUES ('fred flintstone', 35, 1.28), ('barney rubble', 32, 2.32); 
+
+		CREATE TABLE pageviews (userid VARCHAR(64), link STRING, from STRING) 
+		PARTITIONED BY (datestamp STRING) 
+		CLUSTERED BY (userid) INTO 256 BUCKETS 
+		STORED AS ORC; 
+
+		INSERT INTO TABLE pageviews 
+		PARTITION (datestamp = '2014-09-23') 
+		VALUES ('jsmith', 'mail.com', 'sports.com'), ('jdoe', 'mail.com', null); 
+
+		INSERT INTO TABLE pageviews 
+		PARTITION (datestamp) 
+		VALUES ('tjohnson', 'sports.com', 'finance.com', '2014-09-23'), ('tlee', 'finance.com', null, '2014-09-21');
+
+		UPDATE students SET name = null WHERE gpa <= 1.0; 
+
+====================================================================================================================
+
+16.	Delete a row from a Hive table
+
+		DELETE FROM students WHERE gpa <= 1,0; 
+
+		--MERGE Statement
+
+		--Use the MERGE statement to efficiently perform record-level INSERT, UPDATE, and DELETE 
+		--operations within Hive tables. The MERGE statement can be a key tool of Hadoop data management.
+		
+		--The MERGE statement is based on ANSI-standard SQL.
+		
+		--The following SQL statement is an example of valid MERGE usage:
+		
+		merge into customer
+		using ( select * from new_customer_stage) sub
+		on sub.id = customer.id
+		when matched then update set name = sub.name, state = sub.new_state
+		when not matched then insert values (sub.id, sub.name, sub.state);
+
+====================================================================================================================
+
+17.	Insert a new row into a Hive table
+		
+		INSERT INTO TABLE students
+  		VALUES ('fred flintstone', 35, 1.28), ('barney rubble', 32, 2.32);
+		
+		INSERT INTO TABLE tablename 
+		SELECT value1,value2 FROM tempTable_with_atleast_one_records LIMIT 1
+
+====================================================================================================================
+
+18.	Join two Hive tables
+
+		select c.id, c.name, o.order_date, o.amount from customers c 
+		inner join orders o ON (c.id = o.customer_id);
+
+		select c.id, c.name, o.order_date, o.amount from customers c 
+		left outer join orders o ON (c.id = o.customer_id);
+
+====================================================================================================================
+
+19.	Run a Hive query using Tez
+
+		set hive.execution.engine=tez;
+
+====================================================================================================================
+
+20.	Run a Hive query using vectorization
+
+		set hive.vectorized.execution.enabled=true
+		set hive.vectorized.execution.reduce.enabled = true;
+		
+		------
+
+		set hive.cbo.enable=true;
+		set hive.compute.query.using.stats=true;
+		set hive.stats.fetch.column.stats=true;
+		set hive.stats.fetch.partition.stats=true;
+		-----
+
+		analyze table tweets compute statistics;
+		analyze table tweets compute statistics for columns sender, topic;
+		analyze table tweets compute statistics for columns;
+
+====================================================================================================================
+
+21.	Output the execution plan for a Hive query
+	
+	EXPLAIN [EXTENDED|DEPENDENCY|AUTHORIZATION] query;
+
+	ANALYZE TABLE stud COMPUTE STATISTICS;
+
+	------
+	set hive.spark.explain.user;
+	set hive.explain.user=true;
+
+====================================================================================================================
+
+22.	Use a subquery within a Hive query
+
+		SELECT * FROM TABLE_A WHERE TABLE_A.ID IN (SELECT ID FROM TABLE_B);
+		select * from stud where exists (select 1 from dept where dept.stud_id = stud.id);
+
+====================================================================================================================
+
+23.	Output data from a Hive query that is totally ordered across multiple reducers
+		
+		CLUSTER BY guarantees global ordering, provided you're willing to join the multiple output files yourself.
+
+		The longer version:
+		
+		ORDER BY x: guarantees global ordering, but does this by pushing all data through just one reducer. 
+					This is basically unacceptable for large datasets. You end up one sorted file as output.
+		
+		SORT BY x: orders data at each of N reducers, but each reducer can receive overlapping ranges of data. 
+				   You end up with N or more sorted files with overlapping ranges.
+		
+		DISTRIBUTE BY x: ensures each of N reducers gets non-overlapping ranges of x, but doesn't sort the output 
+						 of each reducer. You end up with N or unsorted files with non-overlapping ranges.
+		
+		CLUSTER BY x: ensures each of N reducers gets non-overlapping ranges, then sorts by those ranges at the reducers. 
+					  This gives you global ordering, and is the same as doing (DISTRIBUTE BY x and SORT BY x). 
+					  You end up with N or more sorted files with non-overlapping ranges.
+		
+		Make sense? So CLUSTER BY is basically the more scalable version of ORDER BY.
+
+
+		select * from employee cluster by id;
+
+====================================================================================================================
+
+24.	Set a Hadoop or Hive configuration property from within a Hive query
+	
+		Command:
+
+		beeline -n $user -p $password -u "$jdbc_url" -f $script 
+		--verbose true 
+		--property-file "query.properties" 
+		--fastConnect
+
+		query.properties file
+
+		hive.execution.engine=tez;
+		tez.queue.name=di;
+		hive.exec.parallel=true;
+
+		beeline -u 
+		"jdbc:hive2://example.com:2181,example.com:2181,example:2181/;serviceDiscoveryMode=zooKeeper;zooKeeperNamespace=hiveserver2" 
+		--hiveconf hive.execution.engine=tez
+
+====================================================================================================================
